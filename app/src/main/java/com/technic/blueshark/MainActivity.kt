@@ -68,7 +68,12 @@ class MainActivity : AppCompatActivity() {
 
         navController = navHostFragment.navController
 
-        setupActionBarWithNavController(navController)
+        navController.addOnDestinationChangedListener { _, destination, _ ->
+            Log.d("Navigation", "destination: ${destination.label}")
+        }
+
+        //ToDo: figure out why this is broken
+//        setupActionBarWithNavController(navController)
 
         verifyPermission()
     }
@@ -76,24 +81,13 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
 
-/*        if(!bluetoothAdapter.isEnabled) {
+        if(!bluetoothAdapter.isEnabled) {
             promptEnableBluetooth()
-        }*/
+        }
     }
 
     override fun onSupportNavigateUp(): Boolean {
         return navController.navigateUp() || super.onSupportNavigateUp() // short circuit expression
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        when (requestCode) {
-            ENABLE_BLUETOOTH_REQUEST_CODE -> {
-                if (resultCode != Activity.RESULT_OK) {
-//                    promptEnableBluetooth()
-                }
-            }
-        }
     }
 
     override fun onRequestPermissionsResult(
@@ -139,8 +133,7 @@ class MainActivity : AppCompatActivity() {
     private fun promptEnableBluetooth() {
         if (!bluetoothAdapter.isEnabled) {
             val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-            startActivityForResult(enableBtIntent, ENABLE_BLUETOOTH_REQUEST_CODE)
-//            resultLauncher.launch(enableBtIntent)
+            resultLauncher.launch(enableBtIntent)
         }
     }
 
