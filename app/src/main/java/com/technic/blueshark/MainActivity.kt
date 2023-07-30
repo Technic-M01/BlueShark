@@ -5,6 +5,9 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -12,12 +15,11 @@ import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
-import androidx.navigation.ui.navigateUp
-import androidx.navigation.ui.setupActionBarWithNavController
 import com.technic.blueshark.utils.RequestCodes.ENABLE_BLUETOOTH_REQUEST_CODE
 import com.technic.blueshark.utils.RequestCodes.RUNTIME_PERMISSION_REQUEST_CODE
 import com.technic.blueshark.utils.hasRequiredRuntimePermissions
@@ -31,6 +33,36 @@ class MainActivity : AppCompatActivity() {
         val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         bluetoothManager.adapter
     }
+
+    private val bleScanner by lazy {
+        bluetoothAdapter.bluetoothLeScanner
+    }
+
+    //Could use higher power scan settings
+    private val scanSettings = ScanSettings.Builder()
+        .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+        .build()
+
+    private val scanCallback = object : ScanCallback() {
+        @SuppressLint("MissingPermission")
+        override fun onScanResult(callbackType: Int, result: ScanResult) {
+            super.onScanResult(callbackType, result)
+            with (result.device) {
+                Log.i("ScanCallback", "Found BLE device\n\tName: ${name ?: "Unnamed"}\n\tAddress: $address")
+            }
+
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun startBleScan() {
+        if (!hasRequiredRuntimePermissions()) {
+            requestRelevantRuntimePermissions()
+        } else {
+            bleScanner.startScan(null, scanSettings, scanCallback)
+        }
+    }
+
 
     private fun verifyPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -119,6 +151,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     allGranted && hasRequiredRuntimePermissions() -> {
                         //ToDo: startBleScan (maybe trigger an observable)
+                        startBleScan()
                     }
                     else -> {
                         //Unexpected scenario encountered when handling permissions
@@ -137,7 +170,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    var resultLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+    var resultLauncher: ActivityResultLauncher<Intent> = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         /*if (result.resultCode == Activity.RESULT_OK) {
             //there are no request codes
             val data: Intent? = result.data
@@ -149,7 +182,7 @@ class MainActivity : AppCompatActivity() {
         when (resCode) {
             ENABLE_BLUETOOTH_REQUEST_CODE -> {
                 if (resCode != Activity.RESULT_OK) {
-//                    promptEnableBluetooth()
+                    promptEnableBluetooth()
                 }
             }
             Activity.RESULT_OK -> {
